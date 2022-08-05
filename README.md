@@ -9,7 +9,7 @@
 * bool-bitvec/: Boolean-Bitvector embedding
     * inversion.rkt: Symbolic syntax tree generation
     * types.rkt
-* unity/: UNITY embedding
+* unity/: UNITY embedding and BBV compilation passes
     * bbv-parallel.rkt: Conversion from UNITY to bbv-parallel
     * bbv-refinement.rkt: Refinement relation constraints
     * bbv-scalar.rkt: Conversion from bbv-parallel to scalar
