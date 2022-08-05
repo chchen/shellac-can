@@ -2,33 +2,33 @@
 
 ## Repository layout
 
-* /arduino/: Arduino syntax model and backend
+* arduino/: Arduino syntax model and backend
     * backend.rkt: Backend to native syntax
     * bbv-arduino.rkt: Conversion from bbv-sequential to Arduino
     * syntax.rkt
-* /bool-bitvec/: Boolean-Bitvector embedding
+* bool-bitvec/: Boolean-Bitvector embedding
     * inversion.rkt: Symbolic syntax tree generation
     * types.rkt
-* /unity/: UNITY embedding
+* unity/: UNITY embedding
     * bbv-parallel.rkt: Conversion from UNITY to bbv-parallel
     * bbv-refinement.rkt: Refinement relation constraints
     * bbv-scalar.rkt: Conversion from bbv-parallel to scalar
     * bbv-sequential.rkt: Conversion from bbv-scalar to sequential
     * semantics.rkt: UNITY expression syntax semantics
     * syntax.rkt
-* /verilog/: Verilog syntax model and backend
+* verilog/: Verilog syntax model and backend
     * backend.rkt: Backend to native syntax
     * bbv-verilog.rkt: Conversion from bbv-scalar to Verilog
     * syntax.rkt
-* /FPGA-notes.org: CAD tool notes for Arduino MKR Vidor 4000 board
-* /LICENSE
-* /README.md
-* /config.rkt: Global config
-* /paxos-arduino.rkt: Compilation harness for Arduino Paxos
-* /paxos-verilog.rkt: Compilation harness for Verilog Paxos
-* /paxos.rkt: UNITY specifications for Paxos
-* /semantics.rkt
-* /util.rkt
+* FPGA-notes.org: CAD tool notes for Arduino MKR Vidor 4000 board
+* LICENSE
+* README.md
+* config.rkt: Global config
+* paxos-arduino.rkt: Compilation harness for Arduino Paxos
+* paxos-verilog.rkt: Compilation harness for Verilog Paxos
+* paxos.rkt: UNITY specifications for Paxos
+* semantics.rkt
+* util.rkt
 
 ## Getting started
 
