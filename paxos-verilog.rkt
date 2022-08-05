@@ -8,9 +8,9 @@
          "paxos.rkt")
 
 (define (unity->verilog program name)
-  (let* ([bbv-par (time (unity->bbv-parallel program))]
-         [bbv-scal (time (parallel->scalar bbv-par))]
-         [verilog-module (time (scalar->verilog bbv-scal name))])
+  (let* ([bbv-par (unity->bbv-parallel program)]
+         [bbv-scal (parallel->scalar bbv-par)]
+         [verilog-module (scalar->verilog bbv-scal name)])
     (print-verilog-module verilog-module)))
 
 ;; Compile an acceptor

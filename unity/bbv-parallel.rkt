@@ -263,54 +263,58 @@
 (define (synth-rule expr
                     [precondition? (lambda (domain) #t)]
                     [bbv-invariant? (lambda (bbv-domain bbv-codomain) #t)])
-  (begin
-    (debug-print (format "try-synth ~a~n" expr))
-    (time
-     (match (signature expr)
-       [(-> form domain codomain)
-        (vc-wrapper
-         (let* ([bbv-domain (map type->refinement-domain domain)]
-                [bbv-symbolic-domain (map refinement-domain->symbolic-domain bbv-domain)]
-                [bbv-domain->domain (map type->mapping-fn domain)]
-                [mapped-symbolic-domain (map (lambda (fn x)
-                                               (apply fn x))
-                                             bbv-domain->domain
-                                             bbv-symbolic-domain)]
-                [precondition (precondition? mapped-symbolic-domain)]
-                [postcondition (evaluate-expr (apply form mapped-symbolic-domain))]
-                [bbv-codomain (type->refinement-domain codomain)]
-                [bbv-symbolic-codomain (refinement-domain->symbolic-domain bbv-codomain)]
-                [bbv-codomain->codomain (type->mapping-fn codomain)]
-                [mapped-codomain (apply bbv-codomain->codomain bbv-symbolic-codomain)]
-                [synthesis-condition (and (bbv-invariant? bbv-symbolic-domain
-                                                          bbv-symbolic-codomain)
-                                          (equal? postcondition
-                                                  mapped-codomain))]
-                [partitioned-synthesis-conditions (symbolic-partition (formula->conjuncts synthesis-condition)
-                                                                      bbv-symbolic-codomain)])
-           (define (try-synth formula)
-             (try-synth-bbv-exprs precondition
-                                  formula
-                                  bbv-symbolic-domain
-                                  bbv-symbolic-codomain))
+  (define (helper)
+    (match (signature expr)
+      [(-> form domain codomain)
+       (vc-wrapper
+        (let* ([bbv-domain (map type->refinement-domain domain)]
+               [bbv-symbolic-domain (map refinement-domain->symbolic-domain bbv-domain)]
+               [bbv-domain->domain (map type->mapping-fn domain)]
+               [mapped-symbolic-domain (map (lambda (fn x)
+                                              (apply fn x))
+                                            bbv-domain->domain
+                                            bbv-symbolic-domain)]
+               [precondition (precondition? mapped-symbolic-domain)]
+               [postcondition (evaluate-expr (apply form mapped-symbolic-domain))]
+               [bbv-codomain (type->refinement-domain codomain)]
+               [bbv-symbolic-codomain (refinement-domain->symbolic-domain bbv-codomain)]
+               [bbv-codomain->codomain (type->mapping-fn codomain)]
+               [mapped-codomain (apply bbv-codomain->codomain bbv-symbolic-codomain)]
+               [synthesis-condition (and (bbv-invariant? bbv-symbolic-domain
+                                                         bbv-symbolic-codomain)
+                                         (equal? postcondition
+                                                 mapped-codomain))]
+               [partitioned-synthesis-conditions (symbolic-partition (formula->conjuncts synthesis-condition)
+                                                                     bbv-symbolic-codomain)])
+          (define (try-synth formula)
+            (try-synth-bbv-exprs precondition
+                                 formula
+                                 bbv-symbolic-domain
+                                 bbv-symbolic-codomain))
 
-           (let* ([holevar+>impl (apply append (map try-synth partitioned-synthesis-conditions))]
-                  [holevar-model (sat (make-immutable-hash holevar+>impl))]
-                  [holevar->synthesized-expr (lambda (var) (evaluate var holevar-model))]
-                  [synthesized-expr-tuple (map holevar->synthesized-expr bbv-symbolic-codomain)]
-                  [ordering-constraints (if (type-external? codomain)
-                                            (let* ([domain-idx (index-of domain codomain)]
-                                                   [pretuple (list-ref bbv-symbolic-domain domain-idx)]
-                                                   [mapping (list-ref bbv-domain->domain domain-idx)])
-                                              (refinement-ordering precondition
-                                                                   pretuple
-                                                                   synthesized-expr-tuple
-                                                                   mapping))
-                                            '())])
-             (translation-rule precondition
-                               bbv-symbolic-domain
-                               synthesized-expr-tuple
-                               ordering-constraints))))]))))
+          (let* ([holevar+>impl (apply append (map try-synth partitioned-synthesis-conditions))]
+                 [holevar-model (sat (make-immutable-hash holevar+>impl))]
+                 [holevar->synthesized-expr (lambda (var) (evaluate var holevar-model))]
+                 [synthesized-expr-tuple (map holevar->synthesized-expr bbv-symbolic-codomain)]
+                 [ordering-constraints (if (type-external? codomain)
+                                           (let* ([domain-idx (index-of domain codomain)]
+                                                  [pretuple (list-ref bbv-symbolic-domain domain-idx)]
+                                                  [mapping (list-ref bbv-domain->domain domain-idx)])
+                                             (refinement-ordering precondition
+                                                                  pretuple
+                                                                  synthesized-expr-tuple
+                                                                  mapping))
+                                           '())])
+            (translation-rule precondition
+                              bbv-symbolic-domain
+                              synthesized-expr-tuple
+                              ordering-constraints))))]))
+
+  (if time-synth?
+      (begin
+        (err-print (format "rule synthesis: ~a~n" expr))
+        (time (helper)))
+      (helper)))
 
 ;; Translation rules
 
@@ -574,105 +578,25 @@
           (map translate guard-exprs))]))
 
 (define (unity->bbv-parallel program)
-  (match program
-    [(unity* declarations initially assignments)
-     (let* ([context (unity-declare->bbv-context declarations)]
-            [bbv-decls (bbv-context-bbv-val+>bbv-typ context)]
-            [unity-ident->bbv-vals (bbv-context-unity-ident->bbv-vals context)]
-            [bbv-initially (assignment->bbv-assignment initially unity-ident->bbv-vals)]
-            [bbv-assignments (map (lambda (a) (assignment->bbv-assignment a unity-ident->bbv-vals))
-                                  assignments)])
-       (bbv-parallel* bbv-decls bbv-initially bbv-assignments))]))
+  (define (helper)
+    (match program
+      [(unity* declarations initially assignments)
+       (let* ([context (unity-declare->bbv-context declarations)]
+              [bbv-decls (bbv-context-bbv-val+>bbv-typ context)]
+              [unity-ident->bbv-vals (bbv-context-unity-ident->bbv-vals context)]
+              [bbv-initially (assignment->bbv-assignment initially unity-ident->bbv-vals)]
+              [bbv-assignments (map (lambda (a) (assignment->bbv-assignment a unity-ident->bbv-vals))
+                                    assignments)])
+         (bbv-parallel* bbv-decls bbv-initially bbv-assignments))]))
 
-(define unity-test
-  (unity*
-   (list (cons 'ballot natural?)
-         (cons 'value natural?)
-         (cons 'phase natural?)
-         (cons 'prom_bal natural?)
-         (cons 'prop_mbal natural?)
-         (cons 'prop_mval natural?)
-         (cons 'out_prop (out* channel*?))
-         (cons 'in_prop (in* channel*?))
-         (cons 'out_prop_bal send-buffer*?)
-         (cons 'out_prop_val send-buffer*?)
-         (cons 'in_prop_bal recv-buffer*?)
-         (cons 'in_prop_val recv-buffer*?))
-   (:=* (vars* 'ballot
-               'value
-               'phase
-               'prom_bal
-               'in_prop_bal)
-        (exprs* 0
-                0
-                1
-                0
-                (empty-recv-buf*)))
-   (choice*
-    ;; Phase 0: Accepting state
-    ;; Phase 255: Failure state
-    ;; Phase 1->2: prepare receive buffers
-    (:=* (vars* 'in_prop_bal
-                'phase)
-         (list
-          (case-exprs* (=?* 'phase 1)
-                       (empty-recv-buf*)
-                       2)))
-    ;; Phase 2: receive proposal ballot from proposer
-    (:=* (vars* 'in_prop
-                'in_prop_bal)
-         (list
-          (case-exprs* (and* (full?* 'in_prop)
-                             (and* (not* (recv-buf-full?* 'in_prop_bal))
-                                   (=?* 'phase 2)))
-                       (drain* 'in_prop)
-                       (recv-buf-put* 'in_prop_bal (read* 'in_prop)))))
-    ;; Phase 2->3: read proposal
-    (:=* (vars* 'prop_mbal
-                'phase)
-         (list
-          (case-exprs* (and* (recv-buf-full?* 'in_prop_bal)
-                             (=?* 'phase 2))
-                       (recv-buf->nat* 'in_prop_bal)
-                       3)))
-    ;; Phase 3->4: prepare promise response
-    ;; Proposed ballot # > 'ballot and > 'prom_bal
-    (:=* (vars* 'out_prop_bal
-                'out_prop_val
-                'prom_bal
-                'phase)
+  (if time-compile?
+      (begin
+        (err-print (format "unity->bbv-parallel~n"))
+        (time (helper)))
+      (helper)))
 
-         (list
-          (case-exprs* (and* (<?* 'ballot
-                                  'prop_mbal)
-                             (and* (<?* 'prom_bal
-                                        'prop_mbal)
-                                   (=?* 'phase 3)))
-                       (nat->send-buf* 'ballot)
-                       (nat->send-buf* 'value)
-                       'prop_mbal
-                       4)))
-    ;; Phase 4: send promise message
-    (:=* (vars* 'out_prop
-                'out_prop_bal
-                'out_prop_val)
-         (list
-          (case-exprs* (and* (empty?* 'out_prop)
-                             (and* (not* (send-buf-empty?* 'out_prop_bal))
-                                   (=?* 'phase 4)))
-                       (fill* 'out_prop (send-buf-get* 'out_prop_bal))
-                       (send-buf-next* 'out_prop_bal)
-                       'out_prop_val)
-          (case-exprs* (and* (empty?* 'out_prop)
-                             (and* (send-buf-empty?* 'out_prop_bal)
-                                   (and* (not* (send-buf-empty?* 'out_prop_val))
-                                         (=?* 'phase 4))))
-                       (fill* 'out_prop (send-buf-get* 'out_prop_val))
-                       'out_prop_bal
-                       (send-buf-next* 'out_prop_val)))))))
 
 (provide unity->bbv-parallel
-         unity-test
          bbv-parallel*
          bbv-exprs*
          bbv-guard-exprs*)

@@ -3,6 +3,7 @@
 (require "bbv-parallel.rkt"
          "bbv-refinement.rkt"
          "syntax.rkt"
+         "../config.rkt"
          "../util.rkt"
          rosette/lib/match)
 
@@ -109,11 +110,18 @@
             guard-exprss))]))
 
 (define (parallel->scalar program)
-  (match program
-    [(bbv-parallel* declarations initially assignments)
-     (bbv-scalar* declarations
-                  (parallel-assign->scalar-assign initially)
-                  (map parallel-assign->scalar-assign assignments))]))
+  (define (helper)
+    (match program
+      [(bbv-parallel* declarations initially assignments)
+       (bbv-scalar* declarations
+                    (parallel-assign->scalar-assign initially)
+                    (map parallel-assign->scalar-assign assignments))]))
+
+  (if time-compile?
+      (begin
+        (err-print (format "bbv-parallel->bbv-scalar~n"))
+        (time (helper)))
+      (helper)))
 
 (provide bbv-scalar*
          bbv-guard-stmts*

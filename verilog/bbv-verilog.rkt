@@ -133,16 +133,24 @@
                        (choices->verilog-stmts assigns measure))))))
 
 (define (scalar->verilog program module-name)
-  (let ([clock (gensym 'clock)]
-        [reset (gensym 'reset)]
-        [measure (gensym 'measure)])
-    (match program
-      [(bbv-scalar* declare initially assign)
-       (let ([decls (append (standard-vars clock reset measure) declare)])
-         (verilog-module*
-          module-name
-          (declare->port-list decls)
-          (declare->declarations decls)
-          (initially->assign->always decls initially assign clock reset measure)))])))
+  (define (helper)
+    (let ([clock (gensym 'clock)]
+          [reset (gensym 'reset)]
+          [measure (gensym 'measure)])
+      (match program
+        [(bbv-scalar* declare initially assign)
+         (let ([decls (append (standard-vars clock reset measure) declare)])
+           (verilog-module*
+            module-name
+            (declare->port-list decls)
+            (declare->declarations decls)
+            (initially->assign->always decls initially assign clock reset measure)))])))
+
+  (if time-compile?
+      (begin
+        (err-print (format "bbv-scalar->verilog~n"))
+        (time (helper)))
+      (helper)))
+
 
 (provide scalar->verilog)

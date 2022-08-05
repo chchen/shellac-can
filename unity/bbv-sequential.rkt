@@ -3,6 +3,7 @@
 (require "bbv-parallel.rkt"
          "bbv-scalar.rkt"
          "syntax.rkt"
+         "../config.rkt"
          "../util.rkt"
          (only-in racket/set
                   set
@@ -147,15 +148,22 @@
 ;; (stmtss->seq (list stmts) var+>idx)
 
 (define (scalar->sequential program)
-  (match program
-    [(bbv-scalar* declarations initially assignments)
-     (let* ([initially-seq (map guard-stmts->guard-seq initially)]
-            [assign-seqs (map (lambda (cases)
-                                (map guard-stmts->guard-seq cases))
-                              assignments)])
-       (bbv-sequential* declarations
-                        initially-seq
-                        assign-seqs))]))
+  (define (helper)
+    (match program
+      [(bbv-scalar* declarations initially assignments)
+       (let* ([initially-seq (map guard-stmts->guard-seq initially)]
+              [assign-seqs (map (lambda (cases)
+                                  (map guard-stmts->guard-seq cases))
+                                assignments)])
+         (bbv-sequential* declarations
+                          initially-seq
+                          assign-seqs))]))
+
+  (if time-compile?
+      (begin
+        (err-print (format "bbv-scalar->bbv-sequential~n"))
+        (time (helper)))
+      (helper)))
 
 (provide bbv-sequential*
          bbv-guard-seq*

@@ -1,7 +1,12 @@
 #lang rosette/safe
 
-(require (only-in racket/base error-print-width)
-         (only-in racket hash)
+(require (only-in racket/base
+                  error-print-width
+                  current-command-line-arguments)
+         (only-in racket
+                  hash)
+         (only-in racket/vector
+                  vector-member)
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
@@ -14,8 +19,18 @@
 ;;(output-smt "/Users/cchen/Desktop/smt-output")
 (error-print-width (expt 2 16))
 
+(define (flag-present? flag)
+  (integer?
+   (vector-member flag (current-command-line-arguments))))
+
 ;; debug mode
-(define debug? #f)
+(define debug? (flag-present? "--debug"))
+
+;; enable timing for compilation
+(define time-compile? (flag-present? "--time-compile"))
+
+;; enable timing for rule synthesis
+(define time-synth? (flag-present? "--time-synth"))
 
 ;; Set bitwidth for Arduino/Verilog models
 (define vect-len 32)
@@ -27,5 +42,7 @@
 (define max-expression-depth 4)
 
 (provide debug?
+         time-compile?
+         time-synth?
          vect-len
          max-expression-depth)

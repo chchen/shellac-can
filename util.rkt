@@ -5,10 +5,13 @@
          (only-in racket/base
                   gensym))
 
+(define (err-print fmt)
+  (display fmt (current-error-port)))
+
 (define (debug-print fmt)
   (begin
     (if debug?
-        (display fmt (current-error-port))
+        (err-print fmt)
         (void))))
 
 (define (concrete-eq? a b)
@@ -207,7 +210,8 @@
 (define (unique-symbolic-constant ident typ)
   (constant (gensym ident) typ))
 
-(provide debug-print
+(provide err-print
+         debug-print
          concrete-eq?
          concrete-equal?
          equal-length?

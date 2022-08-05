@@ -166,11 +166,18 @@
               assigns)))
 
 (define (sequential->arduino program)
-  (match program
-    [(bbv-sequential* decls initially assigns)
-     (arduino*
-      (bbv-decls->arduino-setup decls initially)
-      (bbv-assigns->arduino-loop assigns decls))]))
+  (define (helper)
+    (match program
+      [(bbv-sequential* decls initially assigns)
+       (arduino*
+        (bbv-decls->arduino-setup decls initially)
+        (bbv-assigns->arduino-loop assigns decls))]))
+
+  (if time-compile?
+      (begin
+        (err-print (format "bbv-sequential->arduino~n"))
+        (time (helper)))
+      (helper)))
 
 
 (provide sequential->arduino)
