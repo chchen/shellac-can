@@ -30,14 +30,6 @@
    value)
   #:transparent)
 
-(struct recv-channel*
-  channel* ()
-  #:transparent)
-
-(struct send-channel*
-  channel* ()
-  #:transparent)
-
 ;; Boolean buffer with a cursor
 (struct buffer*
   (cursor
@@ -233,10 +225,6 @@
          out*?
          channel* ;; types
          channel*?
-         recv-channel*
-         recv-channel*?
-         send-channel*
-         send-channel*?
          channel*-valid
          channel*-value
          buffer*

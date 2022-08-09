@@ -126,16 +126,6 @@
       (channel* #f null)
       (channel* #t val)))
 
-(define (req->ack->val->recv-channel req ack val)
-  (if (eq? req ack)
-      (recv-channel* #f null)
-      (recv-channel* #t val)))
-
-(define (req->ack->val->send-channel req ack val)
-  (if (eq? req ack)
-      (send-channel* #f null)
-      (send-channel* #t val)))
-
 ;; vect -> vect -> buffer
 (define (cursor->val->recv-buffer cursor val)
   (recv-buffer* (bitvector->natural cursor)
@@ -174,8 +164,6 @@
   (cond
     [(in*? typ) #t]
     [(out*? typ) #t]
-    [(equal? recv-channel*? typ) #t]
-    [(equal? send-channel*? typ) #t]
     [else #f]))
 
 ;; A mapping from unity types to their refinement mapping domain
@@ -185,8 +173,6 @@
      (cons boolean? (list boolean?))
      (cons (in* channel*?) (list (in* boolean?) (out* boolean?) (in* boolean?)))
      (cons (out* channel*?) (list (out* boolean?) (in* boolean?) (out* boolean?)))
-     (cons recv-channel*? (list boolean? boolean? boolean?))
-     (cons send-channel*? (list boolean? boolean? boolean?))
      (cons integer? (list vect?))
      (cons recv-buffer*? (list vect? vect?))
      (cons send-buffer*? (list vect? vect?))))
@@ -210,15 +196,11 @@
      (cons boolean? identity)
      (cons (in* channel*?) req->ack->val->channel)
      (cons (out* channel*?) req->ack->val->channel)
-     (cons recv-channel*? req->ack->val->recv-channel)
-     (cons send-channel*? req->ack->val->send-channel)
      (cons integer? vect->natural)
      (cons recv-buffer*? cursor->val->recv-buffer)
      (cons send-buffer*? cursor->val->send-buffer)))
 
   (get-mapping typ table))
-
-
 
 (define (try-synth-bbv-exprs precondition postcondition bbv-domain bbv-codomain)
   (let ([bbv-holes (intersection bbv-codomain (symbolics postcondition))]

@@ -36,8 +36,8 @@
 
 (define (bbv-inout-decl->arduino-stmt decl)
   (match decl
-    [(cons ident (bbv:in* _)) (pin-mode* ident 'input)]
-    [(cons ident (bbv:out* _)) (pin-mode* ident 'output)]))
+    [(cons ident (bbv:in* _)) (pin-mode* ident 'INPUT)]
+    [(cons ident (bbv:out* _)) (pin-mode* ident 'OUTPUT)]))
 
 (define (bbv-op->arduino-op op)
   (define table
