@@ -20,7 +20,8 @@
                   with-handlers
                   exn:fail?)
          (only-in racket/list
-                  index-of))
+                  index-of
+                  indexes-of))
 
 ;; How to synthesize a compilation rule
 
@@ -559,6 +560,64 @@
      (:=* (map unity-ident->bbv-vals vars)
           (map translate guard-exprs))]))
 
+(define (noop-optimize-bbv-exprs guard vars b-e)
+  (define (noop-assignment? var expr)
+    (vc-wrapper
+     (let ([noop?
+            (unsat? (verify (begin
+                              (assume guard)
+                              (assert (equal? var expr)))))])
+       (begin
+         (debug-print (format "noop-assignment? ~a <=> ~a ~a~n"
+                              var expr noop?))
+         noop?))))
+
+  (define (left-or-right left right mask)
+    (map (lambda (l r m?)
+           (if m? l r))
+         left right mask))
+
+  (define (ordering-not-noop? noop-indxs)
+    (lambda (o)
+      (match o
+        [(ordering before after)
+         (and (not (in-list? before noop-indxs))
+              (not (in-list? after noop-indxs)))])))
+
+  (match b-e
+    [(bbv-exprs* exprs constraints)
+     (let* ([noop-mask (map noop-assignment? vars exprs)]
+            [new-exprs (left-or-right vars exprs noop-mask)]
+            [noop-idxs (indexes-of noop-mask #t)]
+            [new-constraints (filter (ordering-not-noop? noop-idxs) constraints)])
+       (bbv-exprs* new-exprs new-constraints))]))
+
+(define (noop-optimize-bbv-guard-exprs varss b-g-e)
+  (match b-g-e
+    [(bbv-guard-exprs* (list guard) b-es)
+     (begin
+       (assert (= (length varss)
+                  (length b-es)))
+       (bbv-guard-exprs* (list guard)
+                         (map (lambda (v b)
+                                (noop-optimize-bbv-exprs guard v b))
+                              varss b-es)))]))
+
+(define (noop-optimize-assignment a)
+  (define (helper)
+    (match a
+      [(:=* varss b-g-es)
+       (:=* varss
+            (map (lambda (b-g-e)
+                   (noop-optimize-bbv-guard-exprs varss b-g-e))
+                 b-g-es))]))
+
+  (if time-noop?
+      (begin
+        (err-print (format "noop-optimize-assignment~n"))
+        (time (helper)))
+      (helper)))
+
 (define (unity->bbv-parallel program)
   (define (helper)
     (match program
@@ -568,8 +627,9 @@
               [unity-ident->bbv-vals (bbv-context-unity-ident->bbv-vals context)]
               [bbv-initially (assignment->bbv-assignment initially unity-ident->bbv-vals)]
               [bbv-assignments (map (lambda (a) (assignment->bbv-assignment a unity-ident->bbv-vals))
-                                    assignments)])
-         (bbv-parallel* bbv-decls bbv-initially bbv-assignments))]))
+                                    assignments)]
+              [noop-opt-assignments (map noop-optimize-assignment bbv-assignments)])
+         (bbv-parallel* bbv-decls bbv-initially noop-opt-assignments))]))
 
   (if time-compile?
       (begin

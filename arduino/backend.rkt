@@ -43,7 +43,9 @@
 (define (setup->pins-inits setup)
   (define (pins-inits-stmt? stmt)
     (match stmt
+      [(:=* _ _) #t]
       [(pin-mode* _ _) #t]
+      [(write* _ _) #t]
       [_ #f]))
 
   (filter pins-inits-stmt? setup))

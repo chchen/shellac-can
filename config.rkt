@@ -32,6 +32,9 @@
 ;; enable timing for rule synthesis
 (define time-synth? (flag-present? "--time-synth"))
 
+;; enable timing for rule synthesis
+(define time-noop? (flag-present? "--time-noop"))
+
 ;; Set bitwidth for Arduino/Verilog models
 (define vect-len 32)
 
@@ -44,5 +47,6 @@
 (provide debug?
          time-compile?
          time-synth?
+         time-noop?
          vect-len
          max-expression-depth)
