@@ -6,12 +6,21 @@
          "../unity/bbv-sequential.rkt"
          "../util.rkt"
          "syntax.rkt"
+         (only-in racket/list
+                  range)
          (prefix-in bbv: "../bool-bitvec/types.rkt")
          (prefix-in bbv: "../unity/syntax.rkt")
          rosette/lib/match)
 
 
 (define pin-count 22)
+
+;; Reserved pins for serial monitor
+(define reserved-pins (list 13 14))
+
+(define pins
+  (remove* reserved-pins
+           (range pin-count)))
 
 (define (bbv-ghost-decl->arduino-stmt decl)
   (match decl
@@ -20,19 +29,19 @@
                               [(equal? typ bbv:vect?) unsigned-int*])])
        (arduino-typ ident))]))
 
-(define (bbv-decl->arduino-stmt decl [current-pin 0])
+(define (bbv-decl->arduino-stmt decl available-pins)
   (begin
-    (assert (< current-pin pin-count))
+    (assert (pair? available-pins))
     (match decl
-      [(cons ident (bbv:in* _)) (cons (const-int* ident current-pin)
-                                      (add1 current-pin))]
-      [(cons ident (bbv:out* _)) (cons (const-int* ident current-pin)
-                                       (add1 current-pin))]
+      [(cons ident (bbv:in* _)) (cons (const-int* ident (car available-pins))
+                                      (cdr available-pins))]
+      [(cons ident (bbv:out* _)) (cons (const-int* ident (car available-pins))
+                                       (cdr available-pins))]
       [(cons ident typ)
        (let ([arduino-typ (cond [(equal? typ boolean?) bool*]
                                 [(equal? typ bbv:vect?) unsigned-int*])])
          (cons (arduino-typ ident)
-               current-pin))])))
+               available-pins))])))
 
 (define (bbv-inout-decl->arduino-stmt decl)
   (match decl
@@ -103,16 +112,16 @@
       [(cons _ (bbv:out* _)) #t]
       [_ #f]))
 
-  (define (decls->arduino-type-stmts ds [ts '()] [current-pin 0])
+  (define (decls->arduino-type-stmts ds [ts '()] [remaining-pins pins])
     (if (null? ds)
         ts
         (let* ([bbv-decl (car ds)]
-               [stmt-pin (bbv-decl->arduino-stmt bbv-decl current-pin)]
-               [arduino-stmt (car stmt-pin)]
-               [next-pin (cdr stmt-pin)])
+               [stmt-pins (bbv-decl->arduino-stmt bbv-decl remaining-pins)]
+               [arduino-stmt (car stmt-pins)]
+               [next-pins (cdr stmt-pins)])
           (decls->arduino-type-stmts (cdr ds)
                                      (cons arduino-stmt ts)
-                                     next-pin))))
+                                     next-pins))))
 
   (define (decls->arduino-pin-stmts ds)
     (map bbv-inout-decl->arduino-stmt
