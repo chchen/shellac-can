@@ -35,6 +35,9 @@
 ;; enable timing for rule synthesis
 (define time-noop? (flag-present? "--time-noop"))
 
+;; flag to disable synchronizing verilog inputs
+(define sync-inputs? (not (flag-present? "--no-sync")))
+
 ;; Set bitwidth for Arduino/Verilog models
 (define vect-len 32)
 
@@ -48,5 +51,6 @@
          time-compile?
          time-synth?
          time-noop?
+         sync-inputs?
          vect-len
          max-expression-depth)

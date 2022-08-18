@@ -6,13 +6,19 @@
          "../util.rkt"
          "syntax.rkt"
          (only-in racket/base
-                  gensym)
+                  gensym
+                  make-immutable-hash)
          (only-in racket/list
                   range)
          (prefix-in bbv: "../bool-bitvec/types.rkt")
          (prefix-in bbv: "../unity/syntax.rkt")
          rosette/lib/match)
 
+(struct synchronized
+  (declarations
+   ident-model
+   assignments)
+  #:transparent)
 
 (define (standard-vars clock reset measure)
   (list (cons clock (bbv:in* boolean?))
@@ -69,7 +75,11 @@
        (assert (equal? typ boolean?))
        (reg* 1 ident))]
     [(cons ident (bitvector len))
-     (reg* len ident)]))
+     (reg* len ident)]
+    [(cons ident typ)
+     (begin
+       (assert (equal? typ boolean?))
+       (reg* 1 ident))]))
 
 (define (declare->port-list decls)
   (let ([inputs (filter (lambda (pair) (bbv:in*? (cdr pair))) decls)]
@@ -123,14 +133,39 @@
            (list (<=* measure (add* measure (bbv:vect-literal 1))))
            (list (<=* measure (bbv:vect-literal 0))))))))
 
-(define (initially->assign->always decls inits assigns clock reset measure)
+(define (initially->assign->always inits assigns clock reset measure [sync-stmts '()])
   (list
    (always* (standard-trigger clock reset)
-            (list (if* reset
-                       (cons
-                        (<=* measure (bbv:vect-literal 0))
-                        (assigns->verilog-stmts inits))
-                       (choices->verilog-stmts assigns measure))))))
+            (append sync-stmts
+                    (list
+                     (if* reset
+                          (cons (<=* measure (bbv:vect-literal 0))
+                                (assigns->verilog-stmts inits))
+                          (choices->verilog-stmts assigns measure)))))))
+
+(define (decl->synchronized decls)
+  (define (helper ids new-decl [id+>sync '()] [new-assigns '()])
+    (if (null? ids)
+        (synchronized new-decl
+                      (sat (make-immutable-hash id+>sync))
+                      new-assigns)
+        (let* ([ident (car ids)]
+               [ident-sync1 (constant (format "~a_sync1" ident) boolean?)]
+               [ident-sync2 (constant (format "~a_sync2" ident) boolean?)])
+          (helper (cdr ids)
+                  (append (list (cons ident-sync1 boolean?)
+                                (cons ident-sync2 boolean?))
+                          new-decl)
+                  (cons (cons ident ident-sync2)
+                        id+>sync)
+                  (append (list (<=* ident-sync1 ident)
+                                (<=* ident-sync2 ident-sync1))
+                          new-assigns)))))
+
+  (helper (map car (filter (lambda (pair)
+                             (bbv:in*? (cdr pair)))
+                           decls))
+          decls))
 
 (define (scalar->verilog program module-name)
   (define (helper)
@@ -139,12 +174,23 @@
           [measure (gensym 'measure)])
       (match program
         [(bbv-scalar* declare initially assign)
-         (let ([decls (append (standard-vars clock reset measure) declare)])
-           (verilog-module*
-            module-name
-            (declare->port-list decls)
-            (declare->declarations decls)
-            (initially->assign->always decls initially assign clock reset measure)))])))
+         (if sync-inputs?
+             (match (decl->synchronized declare)
+               [(synchronized decls sync-ident-model sync-stmts)
+                (let ([decls+standard (append (standard-vars clock reset measure) decls)]
+                      [sync-initially (evaluate initially sync-ident-model)]
+                      [sync-assign (evaluate assign sync-ident-model)])
+                  (verilog-module*
+                   module-name
+                   (declare->port-list decls+standard)
+                   (declare->declarations decls+standard)
+                   (initially->assign->always sync-initially sync-assign clock reset measure sync-stmts)))])
+             (let ([decls+standard (append (standard-vars clock reset measure) declare)])
+               (verilog-module*
+                module-name
+                (declare->port-list decls+standard)
+                (declare->declarations decls+standard)
+                (initially->assign->always initially assign clock reset measure))))])))
 
   (if time-compile?
       (begin
