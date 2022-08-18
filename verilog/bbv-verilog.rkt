@@ -69,11 +69,11 @@
     [(cons ident (bbv:in* typ))
      (begin
        (assert (equal? typ boolean?))
-       (wire* 1 ident))]
+       (input* (wire* 1 ident)))]
     [(cons ident (bbv:out* typ))
      (begin
        (assert (equal? typ boolean?))
-       (reg* 1 ident))]
+       (output* (reg* 1 ident)))]
     [(cons ident (bitvector len))
      (reg* len ident)]
     [(cons ident typ)
