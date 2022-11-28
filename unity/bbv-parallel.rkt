@@ -206,7 +206,7 @@
 (define (try-synth-bbv-exprs precondition postcondition bbv-domain bbv-codomain)
   (let ([bbv-holes (intersection bbv-codomain (symbolics postcondition))]
         [bbv-vals (flatten bbv-domain)]
-        [start-time (current-seconds)])
+        [start-time (current-milliseconds)])
     (define (try-synth exp-depth)
       (with-terms
         (vc-wrapper
@@ -231,12 +231,14 @@
                                     (unsat))])
            (if (sat? model)
                (begin
-                 (debug-print (format "~a~n"
-                                      (- (current-seconds) start-time)))
+                 (debug-print (format "~a(~a)~n"
+                                      (- (current-milliseconds) start-time)
+                                      (length (symbolics symbolic+>sketch))))
                  symbolic+>impl)
                (begin
-                 (debug-print (format "~a."
-                                      (- (current-seconds) start-time)))
+                 (debug-print (format "~a(~a)."
+                                      (- (current-milliseconds) start-time)
+                                      (length (symbolics symbolic+>sketch))))
                  (if (>= exp-depth max-expression-depth)
                      symbolic+>impl
                      (try-synth (add1 exp-depth)))))))))
@@ -267,8 +269,10 @@
                                                          bbv-symbolic-codomain)
                                          (equal? postcondition
                                                  mapped-codomain))]
-               [partitioned-synthesis-conditions (symbolic-partition (formula->conjuncts synthesis-condition)
-                                                                     bbv-symbolic-codomain)])
+               [partitioned-synthesis-conditions (if partition-synthesis-conditions?
+                                                     (symbolic-partition (formula->conjuncts synthesis-condition)
+                                                                         bbv-symbolic-codomain)
+                                                     (list synthesis-condition))])
           (define (try-synth formula)
             (try-synth-bbv-exprs precondition
                                  formula
@@ -637,6 +641,23 @@
         (time (helper)))
       (helper)))
 
+(define unity-parity
+  (unity*
+   (list (cons 'even-parity boolean?)
+         (cons 'in (in* channel*?))
+         (cons 'out (out* channel*?)))
+   (:=* (vars* 'even-parity)
+        (exprs* #f))
+   (choice*
+    (:=* (vars* 'even-parity
+                'in
+                'out)
+         (list (case-exprs* (and* (full?* 'in)
+                                  (empty?* 'out))
+                            (not* (<=>* 'even-parity
+                                        (read* 'in)))
+                            (drain* 'in)
+                            (fill* 'out (read* 'in))))))))
 
 (provide unity->bbv-parallel
          bbv-parallel*

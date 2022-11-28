@@ -13,8 +13,7 @@
 (current-solver (z3 #:logic 'QF_BV
                     #:options (hash
                                ':parallel.threads.max 4
-                               ':parallel.enable 'true
-                               ':timeout 120000)))
+                               ':parallel.enable 'true)))
 
 ;;(output-smt "/Users/cchen/Desktop/smt-output")
 (error-print-width (expt 2 16))
@@ -35,6 +34,9 @@
 ;; enable timing for rule synthesis
 (define time-noop? (flag-present? "--time-noop"))
 
+;; flag to disable synthesis condition partitioning
+(define partition-synthesis-conditions? (not (flag-present? "--no-synthesis-partition")))
+
 ;; flag to disable synchronizing verilog inputs
 (define sync-inputs? (not (flag-present? "--no-sync")))
 
@@ -51,6 +53,7 @@
          time-compile?
          time-synth?
          time-noop?
+         partition-synthesis-conditions?
          sync-inputs?
          vect-len
          max-expression-depth)
