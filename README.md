@@ -1,6 +1,10 @@
 # The Shellac Compiler Synthesizer for Concurrent Programs
 
-## Repository layout
+## Publication
+
+* Presented at VSTTE 2022: 14th International Conference on Verified Software: Theories, Tools, and Experiments. [DOI](https://doi.org/10.1007/978-3-031-25803-9_3) [Chapter PDF](shellac-vstte-2022.pdf)
+
+## Repository Structure
 
 * arduino/: Arduino syntax model and backend
     * backend.rkt: Backend to native syntax
@@ -21,8 +25,6 @@
     * bbv-verilog.rkt: Conversion from bbv-scalar to Verilog
     * syntax.rkt
 * FPGA-notes.org: CAD tool notes for Arduino MKR Vidor 4000 board
-* LICENSE
-* README.md
 * config.rkt: Global config
 * paxos-arduino.rkt: Compilation harness for Arduino Paxos
 * paxos-verilog.rkt: Compilation harness for Verilog Paxos
